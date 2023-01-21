@@ -1,12 +1,19 @@
 var observableLatestValue = ko.utils.createSymbolOrString('_latestValue');
 
 ko.observable = function (initialValue) {
+    var affected = new WeakMap();
     function observable() {
         if (arguments.length > 0) {
             // Write
 
             // Ignore writes if the value hasn't changed
-            if (observable.isDifferent(observable[observableLatestValue], arguments[0])) {
+
+            if (typeof observableLatestValue === 'object'  && !Array.isArray(observableLatestValue) && ko.isChanged(observable[observableLatestValue], arguments[0], affected)) {
+                observable.valueWillMutate();
+                observable[observableLatestValue] = arguments[0];
+                observable.valueHasMutated();
+            }
+            else if (observable.isDifferent(observable[observableLatestValue], arguments[0])) {
                 observable.valueWillMutate();
                 observable[observableLatestValue] = arguments[0];
                 observable.valueHasMutated();
@@ -20,7 +27,11 @@ ko.observable = function (initialValue) {
         }
     }
 
-    observable[observableLatestValue] = initialValue;
+    if (typeof initialValue === 'object' && !Array.isArray(initialValue)) {
+        observable[observableLatestValue] = ko.createProxy(initialValue, affected);
+    } else {
+        observable[observableLatestValue] = initialValue;
+    }
 
     // Inherit from 'subscribable'
     if (!ko.utils.canSetPrototype) {
