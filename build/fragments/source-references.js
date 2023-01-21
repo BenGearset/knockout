@@ -56,5 +56,6 @@ knockoutDebugCallback([
     'src/binding/editDetection/compareArrays.js',
     'src/binding/editDetection/arrayToDomNodeChildren.js',
     'src/templating/native/nativeTemplateEngine.js',
-    'src/templating/jquery.tmpl/jqueryTmplTemplateEngine.js'
+    'src/templating/jquery.tmpl/jqueryTmplTemplateEngine.js',
+    'src/proxy-compare/proxy-compare.js'
 ]);

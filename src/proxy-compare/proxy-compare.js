@@ -8,7 +8,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.replaceNewProxy = exports.affectedToPathList = exports.markToTrack = exports.getUntracked = exports.trackMemo = exports.isChanged = exports.createProxy = void 0;
+exports.replaceNewProxy = exports.affectedToPathList = exports.markToTrack = exports.trackMemo = void 0;
 // symbols
 var TRACK_MEMO_SYMBOL = Symbol();
 var GET_ORIGINAL_SYMBOL = Symbol();
@@ -23,6 +23,22 @@ var HAS_KEY_PROPERTY = 'h';
 var ALL_OWN_KEYS_PROPERTY = 'w';
 var HAS_OWN_KEY_PROPERTY = 'o';
 var KEYS_PROPERTY = 'k';
+
+var getOwnPropertyDescriptorsPolyfill = function (obj) {
+    if (obj === null || obj === undefined) {
+        throw new TypeError('Cannot convert undefined or null to object')
+    }
+
+    var protoPropDescriptor = Object.getOwnPropertyDescriptor(obj, '__proto__')
+    var descriptors = {}
+    if (protoPropDescriptor) {
+        descriptors = { '__proto__': protoPropDescriptor };
+    }
+
+    Object.getOwnPropertyNames(obj).forEach( function (name) {descriptors[name] = Object.getOwnPropertyDescriptor(obj, name)} );
+
+    return descriptors
+}
 // function to create a new bare proxy
 var newProxy = function (target, handler) { return new Proxy(target, handler); };
 // get object prototype
@@ -38,7 +54,7 @@ var isObject = function (x) { return (typeof x === 'object' && x !== null); };
 var isFrozen = function (obj) { return (Object.isFrozen(obj) || (
 // Object.isFrozen() doesn't detect non-writable properties
 // See: https://github.com/dai-shi/proxy-compare/pull/8
-    Object.values(Object.getOwnPropertyDescriptors(obj)).some(function (descriptor) { return !descriptor.writable; }))); };
+    Object.values(getOwnPropertyDescriptorsPolyfill(obj)).some(function (descriptor) { return !descriptor.writable; }))); };
 // copy frozen object
 var unfrozenCache = new WeakMap();
 var unfreeze = function (obj) {
@@ -51,7 +67,7 @@ var unfreeze = function (obj) {
         else {
             // For non-array objects, we create a new object keeping the prototype
             // with changing all configurable options (otherwise, proxies will complain)
-            var descriptors = Object.getOwnPropertyDescriptors(obj);
+            var descriptors = getOwnPropertyDescriptorsPolyfill(obj);
             Object.values(descriptors).forEach(function (desc) { desc.configurable = true; });
             unfrozen = Object.create(getProto(obj), descriptors);
         }
@@ -95,7 +111,7 @@ var createProxyHandler = function (origObj, frozen) {
                 return origObj;
             }
             recordUsage(KEYS_PROPERTY, key);
-            return (0, exports.createProxy)(Reflect.get(target, key), state[AFFECTED_PROPERTY], state[PROXY_CACHE_PROPERTY]);
+            return (0, ko.createProxy)(Reflect.get(target, key), state[AFFECTED_PROPERTY], state[PROXY_CACHE_PROPERTY]);
         },
         has: function (target, key) {
             if (key === TRACK_MEMO_SYMBOL) {
@@ -155,7 +171,7 @@ var getOriginalObject = function (obj) { return (
  * // This will update the affected WeakMap with original as key
  * // and a Set with "d"
  */
-var createProxy = function (obj, affected, proxyCache) {
+ko.createProxy = function (obj, affected, proxyCache) {
     if (!isObjectToTrack(obj))
         return obj;
     var target = getOriginalObject(obj);
@@ -172,7 +188,6 @@ var createProxy = function (obj, affected, proxyCache) {
     handlerAndState[1][PROXY_CACHE_PROPERTY] = proxyCache;
     return handlerAndState[1][PROXY_PROPERTY];
 };
-exports.createProxy = createProxy;
 var isAllOwnKeysChanged = function (prevObj, nextObj) {
     var prevKeys = Reflect.ownKeys(prevObj);
     var nextKeys = Reflect.ownKeys(nextObj);
@@ -213,7 +228,7 @@ var isAllOwnKeysChanged = function (prevObj, nextObj) {
  *
  * isChanged(obj, { a: "1" }, affected) // true
  */
-var isChanged = function (prevObj, nextObj, affected, cache) {
+ ko.isChanged = function (prevObj, nextObj, affected, cache) {
     var _a, _b;
     if (Object.is(prevObj, nextObj)) {
         return false;
@@ -259,7 +274,7 @@ var isChanged = function (prevObj, nextObj, affected, cache) {
         }
         for (var _f = 0, _g = used[KEYS_PROPERTY] || []; _f < _g.length; _f++) {
             var key = _g[_f];
-            changed = (0, exports.isChanged)(prevObj[key], nextObj[key], affected, cache);
+            changed = (0, ko.isChanged)(prevObj[key], nextObj[key], affected, cache);
             if (changed)
                 return changed;
         }
@@ -276,7 +291,6 @@ var isChanged = function (prevObj, nextObj, affected, cache) {
         }
     }
 };
-exports.isChanged = isChanged;
 // explicitly track object with memo
 var trackMemo = function (obj) {
     if (isObjectToTrack(obj)) {
@@ -305,13 +319,12 @@ exports.trackMemo = trackMemo;
  * Object.is(original, originalFromProxy) // true
  * isChanged(original, originalFromProxy, affected) // false
  */
-var getUntracked = function (obj) {
+ko.getUntracked = function (obj) {
     if (isObjectToTrack(obj)) {
         return obj[GET_ORIGINAL_SYMBOL] || null;
     }
     return null;
 };
-exports.getUntracked = getUntracked;
 /**
  * Mark object to be tracked.
  *
@@ -410,6 +423,6 @@ var replaceNewProxy = function (fn) {
     newProxy = fn;
 };
 exports.replaceNewProxy = replaceNewProxy;
-ko.exportSymbol('isChanged', isChanged);
-ko.exportSymbol('createProxy', createProxy);
-ko.exportSymbol('getUntracked', getUntracked);
+ko.exportSymbol('isChanged', ko.isChanged);
+ko.exportSymbol('createProxy', ko.createProxy);
+ko.exportSymbol('getUntracked', ko.getUntracked);
