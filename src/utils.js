@@ -430,7 +430,14 @@ ko.utils = (function () {
         },
 
         unwrapObservable: function (value) {
-            return ko.isObservable(value) ? value() : value;
+            if (ko.isObservable(value)) {
+                var unwrapped = value();
+                if (typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
+                    return ko.getUntracked(unwrapped)
+                }
+                return unwrapped;
+            }
+            return value;
         },
 
         peekObservable: function (value) {
